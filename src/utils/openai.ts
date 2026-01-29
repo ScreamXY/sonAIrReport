@@ -123,6 +123,12 @@ For EVERY metric that changed, create a diff entry with your analysis.
 
 **Fields to compare:** LOC, Status, Security, Reliability, Maintainability, Hotspots Reviewed, Coverage (%), Duplications (%)
 
+**IMPORTANT - Exclusions:**
+- Do NOT create diff entries for "Last analysis" / "lastAnalysis" date changes - these always change and are not meaningful metrics
+- Do NOT include a project in the diff report if it has NO meaningful metric changes. Projects with only date updates should be completely excluded from the diff.
+
+**Sorting:** Group all diff entries by project name (alphabetically). All changes for a single project should appear consecutively.
+
 **Delta format examples:**
 - LOC: "+2k", "-500"
 - Coverage: "+1.4 pp", "-0.5 pp" (percentage points)
@@ -145,7 +151,7 @@ For EVERY metric that changed, create a diff entry with your analysis.
   - "Technical debt reduced"
   - "Status improved - Quality Gate passed"
 
-IMPORTANT: Include ALL changes you detect. Even small changes matter for tracking.`
+IMPORTANT: Include ALL meaningful changes you detect. Even small metric changes matter for tracking. But exclude date-only changes.`
   } else {
     userPrompt = `## TASK: Extract Project Metrics from ${imageCount > 1 ? `${imageCount} Screenshots` : 'Screenshot'}
 
