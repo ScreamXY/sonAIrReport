@@ -1,4 +1,4 @@
-import type { FullReport, SonarProject, DiffEntry, AnalysisReport, AnalysisCost, AnalysisResult } from '../types'
+import type { FullReport, SonarProject, DiffEntry, AnalysisReport, AnalysisResult } from '../types'
 
 interface OpenAIResponse {
   choices: Array<{
@@ -63,7 +63,6 @@ const extractMetrics = async (
   images: string[],
   apiKey: string
 ): Promise<{ projects: SonarProject[]; inputTokens: number; outputTokens: number }> => {
-  const todayDate = getTodayDate()
   const imageCount = images.length
 
   const systemPrompt = `You are an expert code quality analyst specializing in SonarCloud/SonarQube metrics extraction.
