@@ -1,15 +1,15 @@
-import { Settings } from 'lucide-react'
+import { Settings } from 'lucide-react';
 
 interface HeaderProps {
-  onSettingsClick: () => void
+  onSettingsClick: () => void;
 }
 
 export function Header({ onSettingsClick }: HeaderProps) {
   return (
     <header className="bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
             <span className="text-xl font-bold">S</span>
           </div>
           <div>
@@ -20,12 +20,12 @@ export function Header({ onSettingsClick }: HeaderProps) {
 
         <button
           onClick={onSettingsClick}
-          className="p-2 rounded-lg hover:bg-slate-700 transition-colors"
+          className="rounded-lg p-2 transition-colors hover:bg-slate-700"
           aria-label="Settings"
         >
-          <Settings className="w-6 h-6" />
+          <Settings className="h-6 w-6" />
         </button>
       </div>
     </header>
-  )
+  );
 }
