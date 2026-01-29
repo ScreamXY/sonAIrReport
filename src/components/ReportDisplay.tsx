@@ -1,14 +1,23 @@
-import { Download, FileSpreadsheet, TrendingUp, TrendingDown, Minus, GitCompare } from 'lucide-react'
-import type { FullReport } from '../types'
+import { Download, FileSpreadsheet, TrendingUp, TrendingDown, Minus, GitCompare, DollarSign } from 'lucide-react'
+import type { FullReport, AnalysisCost } from '../types'
 import { generateCSV } from '../utils/csvParser'
 
 interface ReportDisplayProps {
   report: FullReport
   fullReport?: FullReport // Full report with all historical data for CSV download
+  cost?: AnalysisCost | null
 }
 
-export function ReportDisplay({ report, fullReport }: ReportDisplayProps) {
+export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) {
   const downloadReport = fullReport ?? report
+
+  const formatCost = (amount: number) => {
+    return amount < 0.01 ? `$${amount.toFixed(4)}` : `$${amount.toFixed(3)}`
+  }
+
+  const formatTokens = (tokens: number) => {
+    return tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toString()
+  }
 
   const handleDownload = () => {
     const csv = generateCSV(downloadReport)
@@ -57,21 +66,40 @@ export function ReportDisplay({ report, fullReport }: ReportDisplayProps) {
 
   return (
     <div className="space-y-6">
-      {/* Download Button */}
-      <div className="flex justify-between items-center">
+      {/* Header with Download Button and Cost */}
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <h2 className="text-xl font-bold text-slate-800">Analysis Results</h2>
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity shadow-md"
-        >
-          <Download className="w-4 h-4" />
-          Download Full CSV
-          {fullReport && (
-            <span className="text-xs opacity-75">
-              ({fullReport.analysisReports.length} reports)
-            </span>
+        <div className="flex items-center gap-4">
+          {/* Cost Display */}
+          {cost && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg text-sm">
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <div className="flex flex-col">
+                <span className="font-medium text-slate-800">
+                  Est. Cost: {formatCost(cost.totalCost)}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {cost.extraction.model}: {formatTokens(cost.extraction.inputTokens)} in / {formatTokens(cost.extraction.outputTokens)} out ({formatCost(cost.extraction.cost)})
+                  {cost.comparison && (
+                    <> · {cost.comparison.model}: {formatTokens(cost.comparison.inputTokens)} in / {formatTokens(cost.comparison.outputTokens)} out ({formatCost(cost.comparison.cost)})</>
+                  )}
+                </span>
+              </div>
+            </div>
           )}
-        </button>
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity shadow-md"
+          >
+            <Download className="w-4 h-4" />
+            Download Full CSV
+            {fullReport && (
+              <span className="text-xs opacity-75">
+                ({fullReport.analysisReports.length} reports)
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Diff Reports - Show first if available */}

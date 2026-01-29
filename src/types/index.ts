@@ -42,3 +42,24 @@ export type FullReport = {
 export type Settings = {
   apiKey: string
 }
+
+export type AnalysisCost = {
+  extraction: {
+    model: string
+    inputTokens: number
+    outputTokens: number
+    cost: number
+  }
+  comparison?: {
+    model: string
+    inputTokens: number
+    outputTokens: number
+    cost: number
+  }
+  totalCost: number
+}
+
+export type AnalysisResult = {
+  report: FullReport
+  cost: AnalysisCost
+}

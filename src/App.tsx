@@ -8,7 +8,7 @@ import { AnalysisProgress } from './components/AnalysisProgress'
 import { ReportDisplay } from './components/ReportDisplay'
 import { analyzeScreenshot } from './utils/openai'
 import { getSettings } from './store/settings'
-import type { FullReport } from './types'
+import type { FullReport, AnalysisCost } from './types'
 import { AlertCircle, FileText, Camera, CheckCircle2 } from 'lucide-react'
 
 const queryClient = new QueryClient()
@@ -17,6 +17,7 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [baselineReport, setBaselineReport] = useState<FullReport | null>(null)
   const [analysisResult, setAnalysisResult] = useState<FullReport | null>(null)
+  const [analysisCost, setAnalysisCost] = useState<AnalysisCost | null>(null)
   const [apiKeyError, setApiKeyError] = useState(false)
 
   const analysisMutation = useMutation({
@@ -30,7 +31,8 @@ function AppContent() {
       return analyzeScreenshot(images, settings.apiKey, baselineReport ?? undefined)
     },
     onSuccess: (data) => {
-      setAnalysisResult(data)
+      setAnalysisResult(data.report)
+      setAnalysisCost(data.cost)
     }
   })
 
@@ -160,6 +162,7 @@ function AppContent() {
                 : []
             }}
             fullReport={analysisResult}
+            cost={analysisCost}
           />
         )}
       </main>
