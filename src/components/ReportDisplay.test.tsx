@@ -95,20 +95,19 @@ describe('ReportDisplay', () => {
   it('should render cost information when provided', () => {
     render(<ReportDisplay report={mockReport} cost={mockCost} />);
 
-    expect(screen.getByText(/Est. Cost:/)).toBeInTheDocument();
-    expect(screen.getByText(/\$0.021/)).toBeInTheDocument();
+    expect(screen.getByText('$0.021')).toBeInTheDocument();
   });
 
   it('should render download button', () => {
     render(<ReportDisplay report={mockReport} />);
 
-    expect(screen.getByText(/Download Full CSV/)).toBeInTheDocument();
+    expect(screen.getByText('Download CSV')).toBeInTheDocument();
   });
 
-  it('should show report count when fullReport is provided', () => {
-    render(<ReportDisplay report={mockReport} fullReport={mockReport} />);
+  it('should show token count when cost is provided', () => {
+    render(<ReportDisplay report={mockReport} cost={mockCost} />);
 
-    expect(screen.getByText('(1 reports)')).toBeInTheDocument();
+    expect(screen.getByText(/3.5k tokens/)).toBeInTheDocument();
   });
 
   it('should not render when analysisReports is empty', () => {
@@ -136,6 +135,6 @@ describe('ReportDisplay', () => {
 
     render(<ReportDisplay report={reportWithEmptyDiff} />);
 
-    expect(screen.getByText('No changes detected between the two reports')).toBeInTheDocument();
+    expect(screen.getByText('No changes detected')).toBeInTheDocument();
   });
 });

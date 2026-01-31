@@ -1,10 +1,9 @@
-import { Download, FileSpreadsheet, TrendingUp, TrendingDown, Minus, GitCompare, DollarSign } from 'lucide-react';
 import type { FullReport, AnalysisCost } from '../types';
 import { generateCSV } from '../utils/csvParser';
 
 interface ReportDisplayProps {
   report: FullReport;
-  fullReport?: FullReport; // Full report with all historical data for CSV download
+  fullReport?: FullReport;
   cost?: AnalysisCost | null;
 }
 
@@ -34,36 +33,38 @@ export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) 
   };
 
   const getStatusColor = (status: string) => {
-    return status === 'Passed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    return status === 'Passed'
+      ? 'bg-success-100 text-success-700 dark:bg-success-500/20 dark:text-success-400'
+      : 'bg-error-100 text-error-700 dark:bg-error-500/20 dark:text-error-400';
   };
 
   const getGradeColor = (grade: string) => {
     const letter = grade.charAt(0).toUpperCase();
     switch (letter) {
       case 'A':
-        return 'text-green-600';
+        return 'text-success-600 bg-success-50 dark:bg-success-500/10 dark:text-success-400';
       case 'B':
-        return 'text-blue-600';
+        return 'text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400';
       case 'C':
-        return 'text-yellow-600';
+        return 'text-warning-600 bg-warning-50 dark:bg-warning-500/10 dark:text-warning-400';
       case 'D':
-        return 'text-orange-600';
+        return 'text-warning-700 bg-warning-100 dark:bg-warning-500/20 dark:text-warning-300';
       case 'E':
-        return 'text-red-600';
+        return 'text-error-600 bg-error-50 dark:bg-error-500/10 dark:text-error-400';
       default:
-        return 'text-slate-600';
+        return 'text-[var(--foreground-muted)] bg-[var(--background-secondary)]';
     }
   };
 
   const getDeltaIcon = (degradation: string) => {
     const lower = degradation.toLowerCase();
     if (lower.includes('ja') || lower.includes('yes')) {
-      return <TrendingDown className="h-4 w-4 text-red-500" />;
+      return <i className="ri-arrow-down-line text-error-500" />;
     }
     if (lower.includes('nein') || lower.includes('no') || lower.includes('verbesserung')) {
-      return <TrendingUp className="h-4 w-4 text-green-500" />;
+      return <i className="ri-arrow-up-line text-success-500" />;
     }
-    return <Minus className="h-4 w-4 text-slate-400" />;
+    return <i className="ri-subtract-line text-[var(--foreground-muted)]" />;
   };
 
   if (report.analysisReports.length === 0) return null;
@@ -72,150 +73,205 @@ export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) 
     <div className="space-y-6">
       {/* Header with Download Button and Cost */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-xl font-bold text-slate-800">Analysis Results</h2>
-        <div className="flex items-center gap-4">
+        <h2 className="text-xl font-semibold text-[var(--foreground)]">Analysis Results</h2>
+        <div className="flex items-center gap-3">
           {/* Cost Display */}
           {cost && (
-            <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm">
-              <DollarSign className="h-4 w-4 text-green-600" />
-              <div className="flex flex-col">
-                <span className="font-medium text-slate-800">Est. Cost: {formatCost(cost.totalCost)}</span>
-                <span className="text-xs text-slate-500">
-                  {cost.extraction.model}: {formatTokens(cost.extraction.inputTokens)} in /{' '}
-                  {formatTokens(cost.extraction.outputTokens)} out ({formatCost(cost.extraction.cost)})
-                  {cost.comparison && (
-                    <>
-                      {' '}
-                      · {cost.comparison.model}: {formatTokens(cost.comparison.inputTokens)} in /{' '}
-                      {formatTokens(cost.comparison.outputTokens)} out ({formatCost(cost.comparison.cost)})
-                    </>
-                  )}
-                </span>
-              </div>
+            <div className="card flex items-center gap-2 px-3 py-2 text-sm">
+              <i className="ri-money-dollar-circle-line text-success-500" />
+              <span className="font-medium text-[var(--card-foreground)]">{formatCost(cost.totalCost)}</span>
+              <span className="text-[var(--foreground-muted)]">
+                ({formatTokens(cost.extraction.inputTokens + (cost.comparison?.inputTokens ?? 0))} tokens)
+              </span>
             </div>
           )}
           <button
             onClick={handleDownload}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-white shadow-md transition-opacity hover:opacity-90"
+            className="focus-ring flex items-center gap-2 rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-400"
           >
-            <Download className="h-4 w-4" />
-            Download Full CSV
-            {fullReport && <span className="text-xs opacity-75">({fullReport.analysisReports.length} reports)</span>}
+            <i className="ri-download-2-line" />
+            Download CSV
           </button>
         </div>
       </div>
 
-      {/* Diff Reports - Show first if available */}
+      {/* Diff Reports */}
       {report.diffReports.map((diff, index) => (
-        <div key={index} className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
-          <div className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <GitCompare className="h-5 w-5 text-amber-600" />
-              <div>
-                <h3 className="font-semibold text-slate-800">
-                  Changes: {diff.date} vs {diff.comparedTo}
-                </h3>
-                <p className="text-sm text-slate-500">{diff.entries.length} changes detected</p>
-              </div>
+        <div key={index} className="card overflow-hidden">
+          <div className="bg-warning-50/50 dark:bg-warning-500/5 flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+            <i className="ri-git-commit-line text-warning-600 dark:text-warning-400" />
+            <div>
+              <h3 className="font-medium text-[var(--card-foreground)]">
+                Changes: {diff.date} vs {diff.comparedTo}
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)]">{diff.entries.length} changes detected</p>
             </div>
           </div>
 
           {diff.entries.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50">
+                <thead className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Project</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Field</th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">Previous</th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">Current</th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">Delta</th>
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">Trend</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Remark</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Project
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Field
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Previous
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Current
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Delta
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Trend
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                      Remark
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[var(--border)]">
                   {diff.entries.map((entry, eIndex) => (
-                    <tr key={eIndex} className="transition-colors hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-800">{entry.project}</td>
-                      <td className="px-4 py-3 text-slate-600">{entry.field}</td>
-                      <td className="px-4 py-3 text-right text-slate-500">{entry.oldValue}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-800">{entry.newValue}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{entry.delta}</td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {getDeltaIcon(entry.degradation)}
-                          <span className="text-xs text-slate-500">{entry.degradation}</span>
-                        </div>
+                    <tr key={eIndex} className="hover:bg-[var(--background-secondary)]/50">
+                      <td className="px-4 py-3 font-medium text-[var(--card-foreground)]">{entry.project}</td>
+                      <td className="px-4 py-3 text-[var(--foreground-muted)]">{entry.field}</td>
+                      <td className="px-4 py-3 text-right text-[var(--foreground-muted)]">{entry.oldValue}</td>
+                      <td className="px-4 py-3 text-right font-medium text-[var(--card-foreground)]">
+                        {entry.newValue}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{entry.remark}</td>
+                      <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">{entry.delta}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">{getDeltaIcon(entry.degradation)}</div>
+                      </td>
+                      <td
+                        className="max-w-[200px] truncate px-4 py-3 text-[var(--foreground-muted)]"
+                        title={entry.remark}
+                      >
+                        {entry.remark}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="p-6 text-center text-slate-500">No changes detected between the two reports</div>
+            <div className="flex flex-col items-center justify-center py-8 text-[var(--foreground-muted)]">
+              <i className="ri-checkbox-circle-line ri-2xl text-success-400 mb-2" />
+              <p>No changes detected</p>
+            </div>
           )}
         </div>
       ))}
 
       {/* Current Analysis Report */}
       {report.analysisReports.map((analysis, index) => (
-        <div key={index} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <FileSpreadsheet className="h-5 w-5 text-slate-500" />
-              <div>
-                <h3 className="font-semibold text-slate-800">Current Data: {analysis.date}</h3>
-                <p className="text-sm text-slate-500">{analysis.projects.length} projects extracted from screenshot</p>
-              </div>
+        <div key={index} className="card overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--background-secondary)] px-4 py-3">
+            <i className="ri-file-list-3-line text-[var(--foreground-muted)]" />
+            <div>
+              <h3 className="font-medium text-[var(--card-foreground)]">Current Data: {analysis.date}</h3>
+              <p className="text-xs text-[var(--foreground-muted)]">{analysis.projects.length} projects extracted</p>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Project</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Last Analysis</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">LOC</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Languages</th>
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">Status</th>
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">Security</th>
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">Reliability</th>
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">Maintainability</th>
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">Hotspots</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">Coverage</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">Duplication</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Project
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Last Analysis
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    LOC
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Languages
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Security
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Reliability
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Maintain.
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Hotspots
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Coverage
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
+                    Duplication
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[var(--border)]">
                 {analysis.projects.map((project, pIndex) => (
-                  <tr key={pIndex} className="transition-colors hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">{project.project}</td>
-                    <td className="px-4 py-3 text-slate-600">{project.lastAnalysis}</td>
-                    <td className="px-4 py-3 text-right text-slate-600">{project.loc}</td>
-                    <td className="px-4 py-3 text-slate-600">{project.languages}</td>
+                  <tr key={pIndex} className="hover:bg-[var(--background-secondary)]/50">
+                    <td className="px-4 py-3 font-medium text-[var(--card-foreground)]">{project.project}</td>
+                    <td className="px-4 py-3 text-[var(--foreground-muted)]">{project.lastAnalysis}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">{project.loc}</td>
+                    <td
+                      className="max-w-[100px] truncate px-4 py-3 text-[var(--foreground-muted)]"
+                      title={project.languages}
+                    >
+                      {project.languages}
+                    </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(project.status)}`}>
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(project.status)}`}
+                      >
                         {project.status}
                       </span>
                     </td>
-                    <td className={`px-4 py-3 text-center font-medium ${getGradeColor(project.security)}`}>
-                      {project.security}
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.security)}`}
+                      >
+                        {project.security}
+                      </span>
                     </td>
-                    <td className={`px-4 py-3 text-center font-medium ${getGradeColor(project.reliability)}`}>
-                      {project.reliability}
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.reliability)}`}
+                      >
+                        {project.reliability}
+                      </span>
                     </td>
-                    <td className={`px-4 py-3 text-center font-medium ${getGradeColor(project.maintainability)}`}>
-                      {project.maintainability}
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.maintainability)}`}
+                      >
+                        {project.maintainability}
+                      </span>
                     </td>
-                    <td className={`px-4 py-3 text-center font-medium ${getGradeColor(project.hotspotsReviewed)}`}>
-                      {project.hotspotsReviewed}
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.hotspotsReviewed)}`}
+                      >
+                        {project.hotspotsReviewed}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-600">{project.coverage}</td>
-                    <td className="px-4 py-3 text-right text-slate-600">{project.duplications}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">
+                      {project.coverage}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">
+                      {project.duplications}
+                    </td>
                   </tr>
                 ))}
               </tbody>

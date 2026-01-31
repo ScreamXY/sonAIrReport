@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Upload, AlertCircle, CheckCircle, FileSpreadsheet } from 'lucide-react';
 import { parseCSV } from '../utils/csvParser';
 import type { FullReport } from '../types';
 
@@ -99,13 +98,13 @@ export function CSVUpload({ onLoad }: CSVUploadProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDragEnter={handleDragEnter}
-        className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all ${
+        className={`relative cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-all ${
           dragActive
-            ? 'scale-[1.02] border-green-500 bg-green-50'
+            ? 'border-success-500 bg-success-50 dark:bg-success-500/10'
             : success
-              ? 'border-green-300 bg-green-50'
-              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-        } `}
+              ? 'border-success-300 bg-success-50/50 dark:border-success-500/50 dark:bg-success-500/5'
+              : 'border-[var(--border)] hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-500/5'
+        }`}
       >
         <input
           type="file"
@@ -114,36 +113,40 @@ export function CSVUpload({ onLoad }: CSVUploadProps) {
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div
-            className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full transition-all ${
-              dragActive ? 'scale-110 bg-green-100' : success ? 'bg-green-100' : 'bg-slate-100'
-            } `}
+            className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+              success
+                ? 'bg-success-100 dark:bg-success-500/20'
+                : dragActive
+                  ? 'bg-success-100 dark:bg-success-500/20'
+                  : 'bg-[var(--background-secondary)]'
+            }`}
           >
             {success ? (
-              <CheckCircle className="h-6 w-6 text-green-600" />
+              <i className="ri-checkbox-circle-fill ri-xl text-success-600 dark:text-success-400" />
             ) : dragActive ? (
-              <FileSpreadsheet className="h-6 w-6 text-green-600" />
+              <i className="ri-file-excel-2-line ri-xl text-success-600 dark:text-success-400" />
             ) : (
-              <Upload className="h-6 w-6 text-slate-400" />
+              <i className="ri-upload-cloud-2-line ri-xl text-[var(--foreground-muted)]" />
             )}
           </div>
 
           <div>
             {success ? (
               <>
-                <p className="font-medium text-green-700">CSV Loaded</p>
-                <p className="text-sm text-green-600">{fileName}</p>
+                <p className="text-success-700 dark:text-success-400 font-medium">CSV Loaded</p>
+                <p className="text-success-600 dark:text-success-500 text-sm">{fileName}</p>
               </>
             ) : dragActive ? (
               <>
-                <p className="font-medium text-green-700">Drop CSV here</p>
-                <p className="text-sm text-green-600">Release to upload</p>
+                <p className="text-success-700 dark:text-success-400 font-medium">Drop CSV here</p>
+                <p className="text-success-600 dark:text-success-500 text-sm">Release to upload</p>
               </>
             ) : (
               <>
-                <p className="font-medium text-slate-700">Load Previous Analysis</p>
-                <p className="text-sm text-slate-500">Drag and drop CSV or click to browse</p>
+                <p className="font-medium text-[var(--card-foreground)]">Drop CSV file here</p>
+                <p className="text-sm text-[var(--foreground-muted)]">or click to browse</p>
               </>
             )}
           </div>
@@ -151,8 +154,8 @@ export function CSVUpload({ onLoad }: CSVUploadProps) {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle className="h-4 w-4" />
+        <div className="bg-error-50 text-error-600 dark:bg-error-500/10 dark:text-error-400 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+          <i className="ri-error-warning-line" />
           {error}
         </div>
       )}

@@ -9,7 +9,6 @@ import { ReportDisplay } from './components/ReportDisplay';
 import { analyzeScreenshot } from './utils/openai';
 import { getSettings } from './store/settings';
 import type { FullReport, AnalysisCost } from './types';
-import { AlertCircle, FileText, Camera, CheckCircle2 } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -45,7 +44,7 @@ function AppContent() {
 
   const handleCSVLoad = useCallback((loadedReport: FullReport) => {
     setBaselineReport(loadedReport);
-    setAnalysisResult(null); // Clear previous analysis when new baseline is loaded
+    setAnalysisResult(null);
   }, []);
 
   const getStatus = () => {
@@ -55,7 +54,6 @@ function AppContent() {
     return 'idle';
   };
 
-  // Get the most recent date from baseline for display
   const getBaselineDate = () => {
     if (!baselineReport || baselineReport.analysisReports.length === 0) return null;
     const reports = baselineReport.analysisReports;
@@ -63,31 +61,35 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="gradient-mesh relative min-h-screen">
       <Header onSettingsClick={() => setSettingsOpen(true)} />
 
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-10">
         {/* Hero Section */}
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-3xl font-bold text-slate-800">Analyze SonarCloud Quality Reports</h2>
-          <p className="mx-auto max-w-2xl text-slate-600">
+          <h2 className="mb-3 text-3xl font-bold tracking-tight text-[var(--foreground)]">
+            Analyze SonarCloud Quality Reports
+          </h2>
+          <p className="mx-auto max-w-2xl text-[var(--foreground-muted)]">
             Load a previous CSV report, then upload a new screenshot to compare and analyze changes.
           </p>
         </div>
 
         {/* API Key Warning */}
         {apiKeyError && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600" />
-            <div>
-              <p className="font-medium text-amber-800">API Key Required</p>
-              <p className="text-sm text-amber-600">
+          <div className="card border-warning-200 bg-warning-50 dark:border-warning-500/30 dark:bg-warning-500/10 mb-8 flex items-center gap-4 p-4">
+            <div className="bg-warning-100 dark:bg-warning-500/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+              <i className="ri-error-warning-line ri-lg text-warning-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-warning-700 dark:text-warning-400 font-medium">API Key Required</p>
+              <p className="text-warning-600 dark:text-warning-500 text-sm">
                 Please configure your OpenAI API key in settings to analyze screenshots.
               </p>
             </div>
             <button
               onClick={() => setSettingsOpen(true)}
-              className="ml-auto rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700"
+              className="focus-ring bg-warning-600 hover:bg-warning-700 shrink-0 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
             >
               Open Settings
             </button>
@@ -97,44 +99,53 @@ function AppContent() {
         {/* Workflow Steps */}
         <div className="mb-8 grid gap-6 md:grid-cols-2">
           {/* Step 1: Load CSV */}
-          <div
-            className={`rounded-2xl border bg-white p-6 shadow-sm ${baselineReport ? 'border-green-200' : 'border-slate-100'}`}
-          >
-            <div className="mb-4 flex items-center gap-2">
+          <div className={`card p-6 ${baselineReport ? 'ring-success-500/50 ring-2' : ''}`}>
+            <div className="mb-4 flex items-center gap-3">
               <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${baselineReport ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-600'}`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                  baselineReport
+                    ? 'bg-success-500 text-white'
+                    : 'bg-[var(--background-secondary)] text-[var(--foreground-muted)]'
+                }`}
               >
-                {baselineReport ? <CheckCircle2 className="h-4 w-4" /> : '1'}
+                {baselineReport ? <i className="ri-check-line" /> : <i className="ri-file-text-line" />}
               </div>
-              <FileText className="h-5 w-5 text-green-600" />
-              <h3 className="font-semibold text-slate-800">Load Previous Report (Optional)</h3>
+              <div>
+                <h3 className="font-semibold text-[var(--card-foreground)]">Load Previous Report</h3>
+                <p className="text-xs text-[var(--foreground-muted)]">Optional baseline for comparison</p>
+              </div>
             </div>
+
             <CSVUpload onLoad={handleCSVLoad} />
 
             {baselineReport && baselineReport.analysisReports.length > 0 && (
-              <div className="mt-4 rounded-lg border border-green-100 bg-green-50 p-3">
-                <p className="text-sm text-green-700">
-                  <span className="font-medium">Baseline loaded:</span> {baselineReport.analysisReports.length}{' '}
-                  report(s), latest from <span className="font-medium">{getBaselineDate()}</span>
+              <div className="border-success-200 bg-success-50 dark:border-success-500/30 dark:bg-success-500/10 mt-4 rounded-lg border p-3">
+                <p className="text-success-700 dark:text-success-400 text-sm">
+                  <span className="font-medium">Loaded:</span> {baselineReport.analysisReports.length} report(s) from{' '}
+                  <span className="font-medium">{getBaselineDate()}</span>
                 </p>
-                <p className="mt-1 text-xs text-green-600">New screenshots will be compared against this data</p>
               </div>
             )}
           </div>
 
           {/* Step 2: Upload Screenshot */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
-                2
+          <div className="card p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500 text-white">
+                <i className="ri-camera-line" />
               </div>
-              <Camera className="h-5 w-5 text-blue-600" />
-              <h3 className="font-semibold text-slate-800">Upload Current Screenshot</h3>
+              <div>
+                <h3 className="font-semibold text-[var(--card-foreground)]">Upload Screenshot</h3>
+                <p className="text-xs text-[var(--foreground-muted)]">Current SonarCloud dashboard</p>
+              </div>
             </div>
+
             <ScreenshotUpload onUpload={handleScreenshotUpload} isAnalyzing={analysisMutation.isPending} />
+
             {baselineReport && (
-              <p className="mt-3 text-xs text-slate-500">
-                AI will compare with baseline from {getBaselineDate()} and generate change remarks
+              <p className="mt-4 text-xs text-[var(--foreground-muted)]">
+                <i className="ri-information-line mr-1" />
+                Will compare with baseline from {getBaselineDate()}
               </p>
             )}
           </div>
@@ -145,16 +156,14 @@ function AppContent() {
           <AnalysisProgress status={getStatus()} errorMessage={analysisMutation.error?.message} />
         </div>
 
-        {/* Analysis Results - Only show latest analysis and diff */}
+        {/* Analysis Results */}
         {analysisResult && (
           <ReportDisplay
             report={{
-              // Only show the latest analysis (from screenshot)
               analysisReports:
                 analysisResult.analysisReports.length > 0
                   ? [analysisResult.analysisReports[analysisResult.analysisReports.length - 1]]
                   : [],
-              // Only show the latest diff
               diffReports:
                 analysisResult.diffReports.length > 0
                   ? [analysisResult.diffReports[analysisResult.diffReports.length - 1]]
@@ -167,9 +176,10 @@ function AppContent() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200">
-        <div className="mx-auto max-w-7xl px-4 py-6 text-center text-sm text-slate-500">
-          <p>SonAIr Report &mdash; AI-powered SonarCloud analysis</p>
+      <footer className="border-t border-[var(--border)] bg-[var(--card)]">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-6 py-5 text-sm text-[var(--foreground-muted)]">
+          <i className="ri-radar-line text-teal-500" />
+          <span>SonAIr Report — AI-powered SonarCloud analysis</span>
         </div>
       </footer>
 

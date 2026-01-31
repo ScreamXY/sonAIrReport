@@ -13,6 +13,7 @@
         "postcss": "^8.5.6",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
+        "remixicon": "^4.9.1",
         "tailwindcss": "^4.1.18",
       },
       "devDependencies": {
@@ -643,6 +644,8 @@
     "react-refresh": ["react-refresh@0.18.0", "", {}, "sha512-QgT5//D3jfjJb6Gsjxv0Slpj23ip+HtOpnNgnb2S5zU3CB26G/IDPGoy4RJB42wzFE46DRsstbW6tKHoKbhAxw=="],
 
     "redent": ["redent@3.0.0", "", { "dependencies": { "indent-string": "^4.0.0", "strip-indent": "^3.0.0" } }, "sha512-6tDA8g98We0zd0GvVeMT9arEOnTw9qM03L9cJXaCjrip1OO764RDBLBfrB4cwzNGDj5OA5ioymC9GkizgWJDUg=="],
+
+    "remixicon": ["remixicon@4.9.1", "", {}, "sha512-36gLSoujkabnCFZFDyP17VNh9piuBA/rsXUb4auSJWLGsHVXtmxLj/EM5FjaEAGnk8oIAj1Azob/DZ2N+90lAQ=="],
 
     "require-from-string": ["require-from-string@2.0.2", "", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
