@@ -2,6 +2,17 @@ name: Deploy to GitHub Pages
 
 on:
   push:
+    # Only confirmed non-inputs are excluded; shipped content and unknown paths run.
+    paths-ignore:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'SECURITY.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE*'
+      - '.github/CODEOWNERS'
+      - '.vscode/**'
+      - '.github/workflows/ci.yml'
     branches: [main]
   workflow_dispatch:
 
