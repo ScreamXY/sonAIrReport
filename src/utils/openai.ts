@@ -13,8 +13,7 @@ const MAX_COMPLETION_TOKENS = 8192;
 const REPORT_TITLE = 'h1 projects';
 
 type MessageContent =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string; detail: 'high' } };
+  { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string; detail: 'high' } };
 
 interface ChatMessage {
   role: 'system' | 'user';
