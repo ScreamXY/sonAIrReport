@@ -196,5 +196,32 @@ my-project,"16/01/2026, 10:30",12k,"Java, XML, Kotlin",Passed,A (0),A (0),A (150
       expect(parsedReport.analysisReports[0].projects[0].project).toBe('test-project');
       expect(parsedReport.analysisReports[0].projects[0].coverage).toBe('90.0%');
     });
+
+    it('should keep commas and quotes in values through a roundtrip', () => {
+      const report: FullReport = {
+        analysisReports: [],
+        diffReports: [
+          {
+            date: '16.01.2026',
+            comparedTo: '15.01.2026',
+            entries: [
+              {
+                project: 'my-project',
+                field: 'LOC',
+                oldValue: '10k',
+                newValue: '12k',
+                delta: '+2k',
+                degradation: 'Note',
+                remark: 'Codebase grew, coverage "stable"',
+              },
+            ],
+          },
+        ],
+      };
+
+      const csv = generateCSV(report);
+      expect(csv).toContain('my-project,LOC,10k,12k,+2k,Note,"Codebase grew, coverage ""stable"""');
+      expect(parseCSV(csv).diffReports[0].entries[0].remark).toBe('Codebase grew, coverage "stable"');
+    });
   });
 });

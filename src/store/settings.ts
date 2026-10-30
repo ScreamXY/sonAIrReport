@@ -1,17 +1,18 @@
-import type { Settings } from '../types/index';
+import type { Settings } from '../types';
 
 const STORAGE_KEY = 'sonar-analyzer-settings';
+const DEFAULT_SETTINGS: Settings = { apiKey: '' };
 
 export const getSettings = (): Settings => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return { apiKey: '' };
-    }
+  if (stored === null) {
+    return DEFAULT_SETTINGS;
   }
-  return { apiKey: '' };
+  try {
+    return JSON.parse(stored) as Settings;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 };
 
 export const saveSettings = (settings: Settings): void => {

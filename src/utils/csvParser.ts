@@ -1,132 +1,41 @@
-import type { AnalysisReport, DiffReport, FullReport, SonarProject, DiffEntry } from '../types';
+import type { AnalysisReport, DiffEntry, DiffReport, FullReport, SonarProject } from '../types';
 
-export const parseCSV = (csvContent: string): FullReport => {
-  const lines = csvContent.split('\n').filter((line) => line.trim());
-  const analysisReports: AnalysisReport[] = [];
-  const diffReports: DiffReport[] = [];
+const SECTION_HEADER = /^(\d{2}\.\d{2}\.\d{4}):\s*(.+)$/;
+const DIFF_COMPARED_TO = /diff\s+(\d{2}\.\d{2}\.\d{4})/i;
+const PROJECT_COLUMNS =
+  'Project,Last analysis,LOC,Languages,Status,Security,Reliability,Maintainability,Hotspots Reviewed,Coverage (%),Duplications (%)';
 
-  let currentReport: AnalysisReport | null = null;
-  let currentDiff: DiffReport | null = null;
-  let isHeaderRow = false;
-  let isDiffSection = false;
+interface Section {
+  date: string;
+  title: string;
+  rows: string[];
+}
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+const isDiffSection = (section: Section): boolean => section.title.toLowerCase().includes('diff');
 
-    // Check for date header (e.g., "16.09.2025: h1 projects")
-    const dateHeaderMatch = line.match(/^(\d{2}\.\d{2}\.\d{4}):\s*(.+)$/);
-    if (dateHeaderMatch) {
-      const [, date, title] = dateHeaderMatch;
+const isPresent = <T>(value: T | null): value is T => value !== null;
 
-      // Check if it's a diff section
-      if (title.toLowerCase().includes('diff')) {
-        // Save current report if exists
-        if (currentReport && currentReport.projects.length > 0) {
-          analysisReports.push(currentReport);
-          currentReport = null;
-        }
-        if (currentDiff && currentDiff.entries.length > 0) {
-          diffReports.push(currentDiff);
-        }
+/** Splits the file into "DD.MM.YYYY: title" sections. Rows count only after the column header row. */
+const splitSections = (csvContent: string): Section[] => {
+  const sections: Section[] = [];
+  let columnHeaderSeen = false;
 
-        const comparedToMatch = title.match(/diff\s+(\d{2}\.\d{2}\.\d{4})/i);
-        currentDiff = {
-          date,
-          comparedTo: comparedToMatch ? comparedToMatch[1] : '',
-          entries: [],
-        };
-        isDiffSection = true;
-        isHeaderRow = true;
-      } else {
-        // Save current sections if exists
-        if (currentReport && currentReport.projects.length > 0) {
-          analysisReports.push(currentReport);
-        }
-        if (currentDiff && currentDiff.entries.length > 0) {
-          diffReports.push(currentDiff);
-          currentDiff = null;
-        }
-
-        currentReport = {
-          date,
-          title,
-          projects: [],
-        };
-        isDiffSection = false;
-        isHeaderRow = true;
-      }
+  for (const line of csvContent.split('\n').map((raw) => raw.trim())) {
+    if (line === '') {
       continue;
     }
-
-    // Check for header row
-    if (line.toLowerCase().startsWith('project,')) {
-      isHeaderRow = false;
-      continue;
-    }
-
-    // Skip if we're still in header
-    if (isHeaderRow) continue;
-
-    // Parse data row
-    if (isDiffSection && currentDiff) {
-      const entry = parseDiffRow(line);
-      if (entry) {
-        currentDiff.entries.push(entry);
-      }
-    } else if (currentReport) {
-      const project = parseProjectRow(line);
-      if (project) {
-        currentReport.projects.push(project);
-      }
+    const header = SECTION_HEADER.exec(line);
+    if (header) {
+      sections.push({ date: header[1], title: header[2], rows: [] });
+      columnHeaderSeen = false;
+    } else if (line.toLowerCase().startsWith('project,')) {
+      columnHeaderSeen = true;
+    } else if (columnHeaderSeen) {
+      sections.at(-1)?.rows.push(line);
     }
   }
 
-  // Add remaining reports
-  if (currentReport && currentReport.projects.length > 0) {
-    analysisReports.push(currentReport);
-  }
-  if (currentDiff && currentDiff.entries.length > 0) {
-    diffReports.push(currentDiff);
-  }
-
-  return { analysisReports, diffReports };
-};
-
-const parseProjectRow = (line: string): SonarProject | null => {
-  // Handle CSV with quoted fields containing commas
-  const values = parseCSVLine(line);
-
-  if (values.length < 11) return null;
-
-  return {
-    project: values[0],
-    lastAnalysis: values[1],
-    loc: values[2],
-    languages: values[3],
-    status: values[4] as 'Passed' | 'Failed',
-    security: values[5],
-    reliability: values[6],
-    maintainability: values[7],
-    hotspotsReviewed: values[8],
-    coverage: values[9],
-    duplications: values[10],
-  };
-};
-
-const parseDiffRow = (line: string): DiffEntry | null => {
-  const values = parseCSVLine(line);
-
-  if (values.length < 5) return null;
-
-  return {
-    project: values[0],
-    field: values[1],
-    oldValue: values[2],
-    newValue: values[3],
-    delta: values[4],
-    degradation: values[5] || '',
-    remark: values[6] || '',
-  };
+  return sections;
 };
 
 const parseCSVLine = (line: string): string[] => {
@@ -137,7 +46,10 @@ const parseCSVLine = (line: string): string[] => {
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
 
-    if (char === '"') {
+    if (char === '"' && inQuotes && line[i + 1] === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
       inQuotes = !inQuotes;
     } else if (char === ',' && !inQuotes) {
       values.push(current.trim());
@@ -151,56 +63,113 @@ const parseCSVLine = (line: string): string[] => {
   return values;
 };
 
+const parseProjectRow = (line: string): SonarProject | null => {
+  const values = parseCSVLine(line);
+  if (values.length < 11) {
+    return null;
+  }
+
+  const [
+    project,
+    lastAnalysis,
+    loc,
+    languages,
+    status,
+    security,
+    reliability,
+    maintainability,
+    hotspotsReviewed,
+    coverage,
+    duplications,
+  ] = values;
+  return {
+    project,
+    lastAnalysis,
+    loc,
+    languages,
+    status: status as SonarProject['status'],
+    security,
+    reliability,
+    maintainability,
+    hotspotsReviewed,
+    coverage,
+    duplications,
+  };
+};
+
+const parseDiffRow = (line: string): DiffEntry | null => {
+  const values = parseCSVLine(line);
+  if (values.length < 5) {
+    return null;
+  }
+
+  const [project, field, oldValue, newValue, delta, degradation = '', remark = ''] = values;
+  return { project, field, oldValue, newValue, delta, degradation, remark };
+};
+
+export const parseCSV = (csvContent: string): FullReport => {
+  const sections = splitSections(csvContent);
+
+  const analysisReports: AnalysisReport[] = sections
+    .filter((section) => !isDiffSection(section))
+    .map(({ date, title, rows }) => ({ date, title, projects: rows.map(parseProjectRow).filter(isPresent) }))
+    .filter((report) => report.projects.length > 0);
+
+  const diffReports: DiffReport[] = sections
+    .filter(isDiffSection)
+    .map(({ date, title, rows }) => ({
+      date,
+      comparedTo: DIFF_COMPARED_TO.exec(title)?.[1] ?? '',
+      entries: rows.map(parseDiffRow).filter(isPresent),
+    }))
+    .filter((diff) => diff.entries.length > 0);
+
+  return { analysisReports, diffReports };
+};
+
+/** Quotes a value when it contains a comma, quote or line break (RFC 4180). */
+const toCsvField = (value: string): string => (/[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value);
+
+const toCsvRow = (values: string[]): string => values.map(toCsvField).join(',');
+
 export const generateCSV = (report: FullReport): string => {
-  const lines: string[] = [];
+  const analysisLines = report.analysisReports.flatMap((analysis) => [
+    `${analysis.date}: ${analysis.title}`,
+    PROJECT_COLUMNS,
+    ...analysis.projects.map((project) =>
+      toCsvRow([
+        project.project,
+        project.lastAnalysis,
+        project.loc,
+        project.languages,
+        project.status,
+        project.security,
+        project.reliability,
+        project.maintainability,
+        project.hotspotsReviewed,
+        project.coverage,
+        project.duplications,
+      ]),
+    ),
+    '',
+  ]);
 
-  // Generate analysis reports
-  for (const analysis of report.analysisReports) {
-    lines.push(`${analysis.date}: ${analysis.title}`);
-    lines.push(
-      'Project,Last analysis,LOC,Languages,Status,Security,Reliability,Maintainability,Hotspots Reviewed,Coverage (%),Duplications (%)',
-    );
+  const diffLines = report.diffReports.flatMap((diff) => [
+    `${diff.date}: Diff ${diff.comparedTo}`,
+    `Project,Field,Value_${diff.comparedTo},Value_${diff.date},Delta,Degradation,Remark`,
+    ...diff.entries.map((entry) =>
+      toCsvRow([
+        entry.project,
+        entry.field,
+        entry.oldValue,
+        entry.newValue,
+        entry.delta,
+        entry.degradation,
+        entry.remark ?? '',
+      ]),
+    ),
+    '',
+  ]);
 
-    for (const project of analysis.projects) {
-      lines.push(
-        [
-          project.project,
-          `"${project.lastAnalysis}"`,
-          project.loc,
-          `"${project.languages}"`,
-          project.status,
-          project.security,
-          project.reliability,
-          project.maintainability,
-          project.hotspotsReviewed,
-          project.coverage,
-          project.duplications,
-        ].join(','),
-      );
-    }
-    lines.push('');
-  }
-
-  // Generate diff reports
-  for (const diff of report.diffReports) {
-    lines.push(`${diff.date}: Diff ${diff.comparedTo}`);
-    lines.push('Project,Field,Value_' + diff.comparedTo + ',Value_' + diff.date + ',Delta,Degradation,Remark');
-
-    for (const entry of diff.entries) {
-      lines.push(
-        [
-          entry.project,
-          entry.field,
-          entry.oldValue,
-          entry.newValue,
-          entry.delta,
-          entry.degradation,
-          entry.remark || '',
-        ].join(','),
-      );
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
+  return [...analysisLines, ...diffLines].join('\n');
 };

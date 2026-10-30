@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { parseCSV } from '../utils/csvParser';
+import { useState, type ChangeEvent, type DragEvent } from 'react';
 import type { FullReport } from '../types';
+import { parseCSV } from '../utils/csvParser';
 
 interface CSVUploadProps {
   onLoad: (report: FullReport) => void;
@@ -9,87 +9,63 @@ interface CSVUploadProps {
 export function CSVUpload({ onLoad }: CSVUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const loaded = fileName !== null;
 
-  const handleFile = useCallback(
-    (file: File) => {
-      setError(null);
-      setSuccess(false);
+  const handleFile = (file: File) => {
+    setError(null);
+    setFileName(null);
 
-      if (!file.name.endsWith('.csv') && !file.type.includes('csv') && !file.type.includes('text')) {
-        setError('Please upload a CSV file');
+    if (!file.name.endsWith('.csv') && !file.type.includes('csv') && !file.type.includes('text')) {
+      setError('Please upload a CSV file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const report = parseCSV(reader.result as string);
+      if (report.analysisReports.length === 0) {
+        setError('No valid analysis data found in the CSV');
         return;
       }
+      onLoad(report);
+      setFileName(file.name);
+    };
+    reader.onerror = () => {
+      setError('Failed to read file');
+    };
+    reader.readAsText(file);
+  };
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const content = e.target?.result as string;
-          const report = parseCSV(content);
-
-          if (report.analysisReports.length === 0) {
-            setError('No valid analysis data found in the CSV');
-            return;
-          }
-
-          onLoad(report);
-          setFileName(file.name);
-          setSuccess(true);
-        } catch (err) {
-          setError('Failed to parse CSV file');
-          console.error(err);
-        }
-      };
-      reader.onerror = () => {
-        setError('Failed to read file');
-      };
-      reader.readAsText(file);
-    },
-    [onLoad],
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        handleFile(file);
-      }
-    },
-    [handleFile],
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-  }, []);
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFile(file);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(true);
-  }, []);
+  };
 
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        handleFile(file);
-      }
-    },
-    [handleFile],
-  );
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFile(file);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -97,11 +73,11 @@ export function CSVUpload({ onLoad }: CSVUploadProps) {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onDragEnter={handleDragEnter}
+        onDragEnter={handleDragOver}
         className={`relative cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-all ${
           dragActive
             ? 'border-success-500 bg-success-50 dark:bg-success-500/10'
-            : success
+            : loaded
               ? 'border-success-300 bg-success-50/50 dark:border-success-500/50 dark:bg-success-500/5'
               : 'border-[var(--border)] hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-500/5'
         }`}
@@ -116,14 +92,10 @@ export function CSVUpload({ onLoad }: CSVUploadProps) {
         <div className="space-y-2">
           <div
             className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-              success
-                ? 'bg-success-100 dark:bg-success-500/20'
-                : dragActive
-                  ? 'bg-success-100 dark:bg-success-500/20'
-                  : 'bg-[var(--background-secondary)]'
+              loaded || dragActive ? 'bg-success-100 dark:bg-success-500/20' : 'bg-[var(--background-secondary)]'
             }`}
           >
-            {success ? (
+            {loaded ? (
               <i className="ri-checkbox-circle-fill ri-xl text-success-600 dark:text-success-400" />
             ) : dragActive ? (
               <i className="ri-file-excel-2-line ri-xl text-success-600 dark:text-success-400" />
@@ -133,7 +105,7 @@ export function CSVUpload({ onLoad }: CSVUploadProps) {
           </div>
 
           <div>
-            {success ? (
+            {loaded ? (
               <>
                 <p className="text-success-700 dark:text-success-400 font-medium">CSV Loaded</p>
                 <p className="text-success-600 dark:text-success-500 text-sm">{fileName}</p>

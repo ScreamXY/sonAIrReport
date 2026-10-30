@@ -50,7 +50,7 @@ jobs:
         run: bun run lint
 
       - name: Type check
-        run: bunx tsc --noEmit
+        run: bun run typecheck
 
       - name: Run tests
         run: bun run test:run

@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useEffectEvent, useState, type ChangeEvent, type DragEvent } from 'react';
+
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 interface ScreenshotUploadProps {
   onUpload: (images: string[]) => void;
@@ -10,7 +12,7 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const addFile = useCallback((file: File) => {
+  const addFile = (file: File) => {
     setError(null);
 
     if (!file.type.startsWith('image/')) {
@@ -18,66 +20,57 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
       return;
     }
 
-    if (file.size > 20 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       setError('Image must be less than 20MB');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      setScreenshots((prev) => [...prev, base64]);
+    reader.onload = () => {
+      setScreenshots((prev) => [...prev, reader.result as string]);
     };
     reader.onerror = () => {
       setError('Failed to read file');
     };
     reader.readAsDataURL(file);
-  }, []);
+  };
 
-  const addFiles = useCallback(
-    (files: FileList | File[]) => {
-      Array.from(files).forEach((file) => addFile(file));
-    },
-    [addFile],
-  );
-
-  const removeScreenshot = useCallback((index: number) => {
-    setScreenshots((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setScreenshots([]);
-  }, []);
-
-  const handleAnalyze = useCallback(() => {
-    if (screenshots.length > 0) {
-      onUpload(screenshots);
+  const addFiles = (files: FileList) => {
+    for (const file of files) {
+      addFile(file);
     }
-  }, [screenshots, onUpload]);
+  };
 
-  const handlePaste = useCallback(
-    (e: ClipboardEvent) => {
-      if (isAnalyzing) return;
+  const removeScreenshot = (index: number) => {
+    setScreenshots((prev) => prev.filter((_, i) => i !== index));
+  };
 
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  const onPaste = useEffectEvent((e: ClipboardEvent) => {
+    if (isAnalyzing) {
+      return;
+    }
 
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            addFile(file);
-          }
-          return;
+    for (const item of e.clipboardData?.items ?? []) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          addFile(file);
         }
+        return;
       }
-    },
-    [addFile, isAnalyzing],
-  );
+    }
+  });
 
-  const handlePasteFromClipboard = useCallback(async () => {
-    if (isAnalyzing) return;
+  useEffect(() => {
+    const listener = (e: ClipboardEvent) => onPaste(e);
+    document.addEventListener('paste', listener);
+    return () => {
+      document.removeEventListener('paste', listener);
+    };
+  }, []);
+
+  const handlePasteFromClipboard = async () => {
     setError(null);
 
     try {
@@ -87,8 +80,7 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
         const imageType = item.types.find((type) => type.startsWith('image/'));
         if (imageType) {
           const blob = await item.getType(imageType);
-          const file = new File([blob], 'clipboard-image.png', { type: imageType });
-          addFile(file);
+          addFile(new File([blob], 'clipboard-image.png', { type: imageType }));
           return;
         }
       }
@@ -97,50 +89,33 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
     } catch {
       setError('Could not access clipboard. Try pressing Ctrl+V / Cmd+V instead.');
     }
-  }, [addFile, isAnalyzing]);
+  };
 
-  useEffect(() => {
-    document.addEventListener('paste', handlePaste);
-    return () => {
-      document.removeEventListener('paste', handlePaste);
-    };
-  }, [handlePaste]);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragActive(false);
-
-      if (e.dataTransfer.files.length > 0) {
-        addFiles(e.dataTransfer.files);
-      }
-    },
-    [addFiles],
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragActive(false);
-  }, []);
+    addFiles(e.dataTransfer.files);
+  };
 
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files.length > 0) {
-        addFiles(e.target.files);
-        e.target.value = '';
-      }
-    },
-    [addFiles],
-  );
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+  };
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      addFiles(e.target.files);
+      e.target.value = '';
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Screenshot previews */}
       {screenshots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -149,7 +124,7 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
               {screenshots.length} screenshot{screenshots.length > 1 ? 's' : ''} ready
             </span>
             <button
-              onClick={clearAll}
+              onClick={() => setScreenshots([])}
               disabled={isAnalyzing}
               className="text-error-600 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300 text-xs"
             >
@@ -167,6 +142,7 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
                 <button
                   onClick={() => removeScreenshot(index)}
                   disabled={isAnalyzing}
+                  aria-label={`Remove screenshot ${index + 1}`}
                   className="bg-error-500 absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white opacity-0 transition-opacity group-hover:opacity-100"
                 >
                   <i className="ri-close-line text-xs" />
@@ -180,7 +156,6 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
         </div>
       )}
 
-      {/* Drop zone */}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -225,7 +200,6 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
         </div>
       </div>
 
-      {/* Action buttons */}
       <div className="flex gap-3">
         <button
           onClick={handlePasteFromClipboard}
@@ -240,7 +214,7 @@ export function ScreenshotUpload({ onUpload, isAnalyzing }: ScreenshotUploadProp
         </button>
 
         <button
-          onClick={handleAnalyze}
+          onClick={() => onUpload(screenshots)}
           disabled={isAnalyzing || screenshots.length === 0}
           className={`focus-ring flex flex-1 items-center justify-center gap-2 rounded-md bg-teal-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-400 ${isAnalyzing || screenshots.length === 0 ? 'cursor-not-allowed opacity-50' : ''}`}
         >

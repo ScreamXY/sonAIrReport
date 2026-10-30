@@ -1,27 +1,27 @@
-import { useState, useLayoutEffect } from 'react';
-import { getTheme, toggleTheme, applyTheme } from '../store/theme';
+import { useLayoutEffect, useState } from 'react';
+import { getTheme, saveTheme } from '../store/theme';
 
 interface HeaderProps {
   onSettingsClick: () => void;
 }
 
 export function Header({ onSettingsClick }: HeaderProps) {
-  const [theme, setTheme] = useState<'light' | 'dark'>(getTheme);
+  const [theme, setTheme] = useState(getTheme);
 
   useLayoutEffect(() => {
-    applyTheme(theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const handleToggleTheme = () => {
-    const newTheme = toggleTheme();
-    setTheme(newTheme);
+    const next = theme === 'dark' ? 'light' : 'dark';
+    saveTheme(next);
+    setTheme(next);
   };
 
   return (
     <header className="border-b border-[var(--border)] bg-[var(--card)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">
-          {/* Logo mark with teal accent */}
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 shadow-md shadow-teal-500/20">
             <i className="ri-radar-line ri-lg text-white" />
           </div>
@@ -33,7 +33,6 @@ export function Header({ onSettingsClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Theme Toggle */}
           <button
             onClick={handleToggleTheme}
             className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg text-[var(--foreground-muted)] transition-colors hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]"
@@ -42,7 +41,6 @@ export function Header({ onSettingsClick }: HeaderProps) {
             {theme === 'dark' ? <i className="ri-sun-line ri-lg" /> : <i className="ri-moon-line ri-lg" />}
           </button>
 
-          {/* Settings */}
           <button
             onClick={onSettingsClick}
             className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg text-[var(--foreground-muted)] transition-colors hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]"

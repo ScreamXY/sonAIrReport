@@ -1,71 +1,49 @@
-import { useState, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
-import { Header } from './components/Header';
-import { SettingsModal } from './components/SettingsModal';
-import { ScreenshotUpload } from './components/ScreenshotUpload';
-import { CSVUpload } from './components/CSVUpload';
+import { useState } from 'react';
 import { AnalysisProgress } from './components/AnalysisProgress';
+import { CSVUpload } from './components/CSVUpload';
+import { Header } from './components/Header';
 import { ReportDisplay } from './components/ReportDisplay';
-import { analyzeScreenshot } from './utils/openai';
+import { ScreenshotUpload } from './components/ScreenshotUpload';
+import { SettingsModal } from './components/SettingsModal';
 import { getSettings } from './store/settings';
-import type { FullReport, AnalysisCost } from './types';
+import type { FullReport } from './types';
+import { analyzeScreenshot } from './utils/openai';
 
 const queryClient = new QueryClient();
+
+class MissingApiKeyError extends Error {
+  constructor() {
+    super('API key not configured');
+  }
+}
 
 function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [baselineReport, setBaselineReport] = useState<FullReport | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<FullReport | null>(null);
-  const [analysisCost, setAnalysisCost] = useState<AnalysisCost | null>(null);
-  const [apiKeyError, setApiKeyError] = useState(false);
 
-  const analysisMutation = useMutation({
+  const analysis = useMutation({
     mutationFn: async (images: string[]) => {
-      const settings = getSettings();
-      if (!settings.apiKey) {
-        setApiKeyError(true);
-        throw new Error('API key not configured');
+      const { apiKey } = getSettings();
+      if (!apiKey) {
+        throw new MissingApiKeyError();
       }
-      setApiKeyError(false);
-      return analyzeScreenshot(images, settings.apiKey, baselineReport ?? undefined);
-    },
-    onSuccess: (data) => {
-      setAnalysisResult(data.report);
-      setAnalysisCost(data.cost);
+      return analyzeScreenshot(images, apiKey, baselineReport);
     },
   });
 
-  const handleScreenshotUpload = useCallback(
-    (images: string[]) => {
-      analysisMutation.mutate(images);
-    },
-    [analysisMutation],
-  );
-
-  const handleCSVLoad = useCallback((loadedReport: FullReport) => {
-    setBaselineReport(loadedReport);
-    setAnalysisResult(null);
-  }, []);
-
-  const getStatus = () => {
-    if (analysisMutation.isPending) return 'analyzing';
-    if (analysisMutation.isSuccess) return 'success';
-    if (analysisMutation.isError) return 'error';
-    return 'idle';
+  const handleCSVLoad = (report: FullReport) => {
+    setBaselineReport(report);
+    analysis.reset();
   };
 
-  const getBaselineDate = () => {
-    if (!baselineReport || baselineReport.analysisReports.length === 0) return null;
-    const reports = baselineReport.analysisReports;
-    return reports[reports.length - 1].date;
-  };
+  const baselineDate = baselineReport?.analysisReports.at(-1)?.date ?? null;
 
   return (
     <div className="gradient-mesh relative min-h-screen">
       <Header onSettingsClick={() => setSettingsOpen(true)} />
 
       <main className="mx-auto max-w-7xl px-6 py-10">
-        {/* Hero Section */}
         <div className="mb-10 text-center">
           <h2 className="mb-3 text-3xl font-bold tracking-tight text-[var(--foreground)]">
             Analyze SonarCloud Quality Reports
@@ -75,8 +53,7 @@ function AppContent() {
           </p>
         </div>
 
-        {/* API Key Warning */}
-        {apiKeyError && (
+        {analysis.error instanceof MissingApiKeyError && (
           <div className="card border-warning-200 bg-warning-50 dark:border-warning-500/30 dark:bg-warning-500/10 mb-8 flex items-center gap-4 p-4">
             <div className="bg-warning-100 dark:bg-warning-500/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
               <i className="ri-error-warning-line ri-lg text-warning-600" />
@@ -96,9 +73,7 @@ function AppContent() {
           </div>
         )}
 
-        {/* Workflow Steps */}
         <div className="mb-8 grid gap-6 md:grid-cols-2">
-          {/* Step 1: Load CSV */}
           <div className={`card p-6 ${baselineReport ? 'ring-success-500/50 ring-2' : ''}`}>
             <div className="mb-4 flex items-center gap-3">
               <div
@@ -118,17 +93,16 @@ function AppContent() {
 
             <CSVUpload onLoad={handleCSVLoad} />
 
-            {baselineReport && baselineReport.analysisReports.length > 0 && (
+            {baselineReport && (
               <div className="border-success-200 bg-success-50 dark:border-success-500/30 dark:bg-success-500/10 mt-4 rounded-lg border p-3">
                 <p className="text-success-700 dark:text-success-400 text-sm">
                   <span className="font-medium">Loaded:</span> {baselineReport.analysisReports.length} report(s) from{' '}
-                  <span className="font-medium">{getBaselineDate()}</span>
+                  <span className="font-medium">{baselineDate}</span>
                 </p>
               </div>
             )}
           </div>
 
-          {/* Step 2: Upload Screenshot */}
           <div className="card p-6">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500 text-white">
@@ -140,42 +114,24 @@ function AppContent() {
               </div>
             </div>
 
-            <ScreenshotUpload onUpload={handleScreenshotUpload} isAnalyzing={analysisMutation.isPending} />
+            <ScreenshotUpload onUpload={analysis.mutate} isAnalyzing={analysis.isPending} />
 
             {baselineReport && (
               <p className="mt-4 text-xs text-[var(--foreground-muted)]">
                 <i className="ri-information-line mr-1" />
-                Will compare with baseline from {getBaselineDate()}
+                Will compare with baseline from {baselineDate}
               </p>
             )}
           </div>
         </div>
 
-        {/* Analysis Progress */}
         <div className="mb-8">
-          <AnalysisProgress status={getStatus()} errorMessage={analysisMutation.error?.message} />
+          <AnalysisProgress status={analysis.status} errorMessage={analysis.error?.message ?? null} />
         </div>
 
-        {/* Analysis Results */}
-        {analysisResult && (
-          <ReportDisplay
-            report={{
-              analysisReports:
-                analysisResult.analysisReports.length > 0
-                  ? [analysisResult.analysisReports[analysisResult.analysisReports.length - 1]]
-                  : [],
-              diffReports:
-                analysisResult.diffReports.length > 0
-                  ? [analysisResult.diffReports[analysisResult.diffReports.length - 1]]
-                  : [],
-            }}
-            fullReport={analysisResult}
-            cost={analysisCost}
-          />
-        )}
+        {analysis.data && <ReportDisplay report={analysis.data.report} cost={analysis.data.cost} />}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-[var(--border)] bg-[var(--card)]">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-6 py-5 text-sm text-[var(--foreground-muted)]">
           <i className="ri-radar-line text-teal-500" />

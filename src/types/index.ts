@@ -43,19 +43,16 @@ export type Settings = {
   apiKey: string;
 };
 
+export type ModelUsage = {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cost: number;
+};
+
 export type AnalysisCost = {
-  extraction: {
-    model: string;
-    inputTokens: number;
-    outputTokens: number;
-    cost: number;
-  };
-  comparison?: {
-    model: string;
-    inputTokens: number;
-    outputTokens: number;
-    cost: number;
-  };
+  extraction: ModelUsage;
+  comparison: ModelUsage | null;
   totalCost: number;
 };
 

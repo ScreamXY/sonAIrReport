@@ -3,7 +3,6 @@ import { getSettings, saveSettings, clearSettings } from './settings';
 
 describe('settings store', () => {
   beforeEach(() => {
-    // Clear localStorage before each test
     localStorage.clear();
   });
 

@@ -1,81 +1,130 @@
-import type { FullReport, AnalysisCost } from '../types';
+import type { AnalysisCost, FullReport } from '../types';
 import { generateCSV } from '../utils/csvParser';
 
 interface ReportDisplayProps {
   report: FullReport;
-  fullReport?: FullReport;
-  cost?: AnalysisCost | null;
+  cost?: AnalysisCost;
 }
 
-export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) {
-  const downloadReport = fullReport ?? report;
+type Align = 'left' | 'right' | 'center';
 
-  const formatCost = (amount: number) => {
-    return amount < 0.01 ? `$${amount.toFixed(4)}` : `$${amount.toFixed(3)}`;
-  };
+const ALIGN_CLASSES: Record<Align, string> = {
+  left: 'text-left',
+  right: 'text-right',
+  center: 'text-center',
+};
 
-  const formatTokens = (tokens: number) => {
-    return tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toString();
-  };
+const DIFF_COLUMNS: [string, Align][] = [
+  ['Project', 'left'],
+  ['Field', 'left'],
+  ['Previous', 'right'],
+  ['Current', 'right'],
+  ['Delta', 'right'],
+  ['Trend', 'center'],
+  ['Remark', 'left'],
+];
+
+const PROJECT_COLUMNS: [string, Align][] = [
+  ['Project', 'left'],
+  ['Last Analysis', 'left'],
+  ['LOC', 'right'],
+  ['Languages', 'left'],
+  ['Status', 'center'],
+  ['Security', 'center'],
+  ['Reliability', 'center'],
+  ['Maintain.', 'center'],
+  ['Hotspots', 'center'],
+  ['Coverage', 'right'],
+  ['Duplication', 'right'],
+];
+
+const formatCost = (amount: number): string => `$${amount.toFixed(amount < 0.01 ? 4 : 3)}`;
+
+const formatTokens = (tokens: number): string =>
+  tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : tokens.toString();
+
+const statusColor = (status: string): string =>
+  status === 'Passed'
+    ? 'bg-success-100 text-success-700 dark:bg-success-500/20 dark:text-success-400'
+    : 'bg-error-100 text-error-700 dark:bg-error-500/20 dark:text-error-400';
+
+const gradeColor = (grade: string): string => {
+  switch (grade.charAt(0).toUpperCase()) {
+    case 'A':
+      return 'text-success-600 bg-success-50 dark:bg-success-500/10 dark:text-success-400';
+    case 'B':
+      return 'text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400';
+    case 'C':
+      return 'text-warning-600 bg-warning-50 dark:bg-warning-500/10 dark:text-warning-400';
+    case 'D':
+      return 'text-warning-700 bg-warning-100 dark:bg-warning-500/20 dark:text-warning-300';
+    case 'E':
+      return 'text-error-600 bg-error-50 dark:bg-error-500/10 dark:text-error-400';
+    default:
+      return 'text-[var(--foreground-muted)] bg-[var(--background-secondary)]';
+  }
+};
+
+// "Yes" = quality got worse, "No" = better or same, anything else (e.g. "Note") is neutral.
+function TrendIcon({ degradation }: { degradation: string }) {
+  if (/\byes\b/i.test(degradation)) {
+    return <i className="ri-arrow-down-line text-error-500" />;
+  }
+  if (/\bno\b/i.test(degradation)) {
+    return <i className="ri-arrow-up-line text-success-500" />;
+  }
+  return <i className="ri-subtract-line text-[var(--foreground-muted)]" />;
+}
+
+function GradeBadge({ grade }: { grade: string }) {
+  return (
+    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${gradeColor(grade)}`}>{grade}</span>
+  );
+}
+
+function TableHead({ columns }: { columns: [string, Align][] }) {
+  return (
+    <thead className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+      <tr>
+        {columns.map(([label, align]) => (
+          <th
+            key={label}
+            className={`px-4 py-3 text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase ${ALIGN_CLASSES[align]}`}
+          >
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+/** Shows the latest analysis and diff of `report`; the CSV download contains the full history. */
+export function ReportDisplay({ report, cost }: ReportDisplayProps) {
+  const analysis = report.analysisReports.at(-1);
+  const diff = report.diffReports.at(-1);
 
   const handleDownload = () => {
-    const csv = generateCSV(downloadReport);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([generateCSV(report)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const date = new Date().toISOString().split('T')[0];
-    link.setAttribute('href', url);
-    link.setAttribute('download', `sonar-analysis-${date}.csv`);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sonar-analysis-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const getStatusColor = (status: string) => {
-    return status === 'Passed'
-      ? 'bg-success-100 text-success-700 dark:bg-success-500/20 dark:text-success-400'
-      : 'bg-error-100 text-error-700 dark:bg-error-500/20 dark:text-error-400';
-  };
-
-  const getGradeColor = (grade: string) => {
-    const letter = grade.charAt(0).toUpperCase();
-    switch (letter) {
-      case 'A':
-        return 'text-success-600 bg-success-50 dark:bg-success-500/10 dark:text-success-400';
-      case 'B':
-        return 'text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400';
-      case 'C':
-        return 'text-warning-600 bg-warning-50 dark:bg-warning-500/10 dark:text-warning-400';
-      case 'D':
-        return 'text-warning-700 bg-warning-100 dark:bg-warning-500/20 dark:text-warning-300';
-      case 'E':
-        return 'text-error-600 bg-error-50 dark:bg-error-500/10 dark:text-error-400';
-      default:
-        return 'text-[var(--foreground-muted)] bg-[var(--background-secondary)]';
-    }
-  };
-
-  const getDeltaIcon = (degradation: string) => {
-    const lower = degradation.toLowerCase();
-    if (lower.includes('ja') || lower.includes('yes')) {
-      return <i className="ri-arrow-down-line text-error-500" />;
-    }
-    if (lower.includes('nein') || lower.includes('no') || lower.includes('verbesserung')) {
-      return <i className="ri-arrow-up-line text-success-500" />;
-    }
-    return <i className="ri-subtract-line text-[var(--foreground-muted)]" />;
-  };
-
-  if (report.analysisReports.length === 0) return null;
+  if (analysis === undefined) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header with Download Button and Cost */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-semibold text-[var(--foreground)]">Analysis Results</h2>
         <div className="flex items-center gap-3">
-          {/* Cost Display */}
           {cost && (
             <div className="card flex items-center gap-2 px-3 py-2 text-sm">
               <i className="ri-money-dollar-circle-line text-success-500" />
@@ -95,9 +144,8 @@ export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) 
         </div>
       </div>
 
-      {/* Diff Reports */}
-      {report.diffReports.map((diff, index) => (
-        <div key={index} className="card overflow-hidden">
+      {diff && (
+        <div className="card overflow-hidden">
           <div className="bg-warning-50/50 dark:bg-warning-500/5 flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
             <i className="ri-git-commit-line text-warning-600 dark:text-warning-400" />
             <div>
@@ -111,34 +159,10 @@ export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) 
           {diff.entries.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Project
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Field
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Previous
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Current
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Delta
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Trend
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                      Remark
-                    </th>
-                  </tr>
-                </thead>
+                <TableHead columns={DIFF_COLUMNS} />
                 <tbody className="divide-y divide-[var(--border)]">
-                  {diff.entries.map((entry, eIndex) => (
-                    <tr key={eIndex} className="hover:bg-[var(--background-secondary)]/50">
+                  {diff.entries.map((entry, index) => (
+                    <tr key={index} className="hover:bg-[var(--background-secondary)]/50">
                       <td className="px-4 py-3 font-medium text-[var(--card-foreground)]">{entry.project}</td>
                       <td className="px-4 py-3 text-[var(--foreground-muted)]">{entry.field}</td>
                       <td className="px-4 py-3 text-right text-[var(--foreground-muted)]">{entry.oldValue}</td>
@@ -147,7 +171,9 @@ export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) 
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">{entry.delta}</td>
                       <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">{getDeltaIcon(entry.degradation)}</div>
+                        <div className="flex items-center justify-center gap-1">
+                          <TrendIcon degradation={entry.degradation} />
+                        </div>
                       </td>
                       <td
                         className="max-w-[200px] truncate px-4 py-3 text-[var(--foreground-muted)]"
@@ -167,118 +193,61 @@ export function ReportDisplay({ report, fullReport, cost }: ReportDisplayProps) 
             </div>
           )}
         </div>
-      ))}
+      )}
 
-      {/* Current Analysis Report */}
-      {report.analysisReports.map((analysis, index) => (
-        <div key={index} className="card overflow-hidden">
-          <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--background-secondary)] px-4 py-3">
-            <i className="ri-file-list-3-line text-[var(--foreground-muted)]" />
-            <div>
-              <h3 className="font-medium text-[var(--card-foreground)]">Current Data: {analysis.date}</h3>
-              <p className="text-xs text-[var(--foreground-muted)]">{analysis.projects.length} projects extracted</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Project
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Last Analysis
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    LOC
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Languages
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Security
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Reliability
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Maintain.
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Hotspots
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Coverage
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wide text-[var(--foreground-muted)] uppercase">
-                    Duplication
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {analysis.projects.map((project, pIndex) => (
-                  <tr key={pIndex} className="hover:bg-[var(--background-secondary)]/50">
-                    <td className="px-4 py-3 font-medium text-[var(--card-foreground)]">{project.project}</td>
-                    <td className="px-4 py-3 text-[var(--foreground-muted)]">{project.lastAnalysis}</td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">{project.loc}</td>
-                    <td
-                      className="max-w-[100px] truncate px-4 py-3 text-[var(--foreground-muted)]"
-                      title={project.languages}
-                    >
-                      {project.languages}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(project.status)}`}
-                      >
-                        {project.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.security)}`}
-                      >
-                        {project.security}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.reliability)}`}
-                      >
-                        {project.reliability}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.maintainability)}`}
-                      >
-                        {project.maintainability}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-semibold ${getGradeColor(project.hotspotsReviewed)}`}
-                      >
-                        {project.hotspotsReviewed}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">
-                      {project.coverage}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">
-                      {project.duplications}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="card overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--background-secondary)] px-4 py-3">
+          <i className="ri-file-list-3-line text-[var(--foreground-muted)]" />
+          <div>
+            <h3 className="font-medium text-[var(--card-foreground)]">Current Data: {analysis.date}</h3>
+            <p className="text-xs text-[var(--foreground-muted)]">{analysis.projects.length} projects extracted</p>
           </div>
         </div>
-      ))}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <TableHead columns={PROJECT_COLUMNS} />
+            <tbody className="divide-y divide-[var(--border)]">
+              {analysis.projects.map((project, index) => (
+                <tr key={index} className="hover:bg-[var(--background-secondary)]/50">
+                  <td className="px-4 py-3 font-medium text-[var(--card-foreground)]">{project.project}</td>
+                  <td className="px-4 py-3 text-[var(--foreground-muted)]">{project.lastAnalysis}</td>
+                  <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">{project.loc}</td>
+                  <td
+                    className="max-w-[100px] truncate px-4 py-3 text-[var(--foreground-muted)]"
+                    title={project.languages}
+                  >
+                    {project.languages}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(project.status)}`}
+                    >
+                      {project.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <GradeBadge grade={project.security} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <GradeBadge grade={project.reliability} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <GradeBadge grade={project.maintainability} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <GradeBadge grade={project.hotspotsReviewed} />
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">{project.coverage}</td>
+                  <td className="px-4 py-3 text-right font-mono text-[var(--foreground-muted)]">
+                    {project.duplications}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

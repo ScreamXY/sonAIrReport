@@ -1,28 +1,31 @@
+import type { MutationStatus } from '@tanstack/react-query';
+
 interface AnalysisProgressProps {
-  status: 'idle' | 'analyzing' | 'success' | 'error';
-  errorMessage?: string;
+  status: MutationStatus;
+  errorMessage: string | null;
 }
 
+const BORDER_CLASSES: Record<Exclude<MutationStatus, 'idle'>, string> = {
+  pending: 'border-teal-200 dark:border-teal-500/30',
+  success: 'border-success-200 dark:border-success-500/30',
+  error: 'border-error-200 dark:border-error-500/30',
+};
+
 export function AnalysisProgress({ status, errorMessage }: AnalysisProgressProps) {
-  if (status === 'idle') return null;
+  if (status === 'idle') {
+    return null;
+  }
 
   return (
-    <div
-      className={`card relative overflow-hidden p-4 ${
-        status === 'analyzing' ? 'border-teal-200 dark:border-teal-500/30' : ''
-      } ${status === 'success' ? 'border-success-200 dark:border-success-500/30' : ''} ${
-        status === 'error' ? 'border-error-200 dark:border-error-500/30' : ''
-      }`}
-    >
-      {/* Animated progress bar for analyzing state */}
-      {status === 'analyzing' && (
+    <div className={`card relative overflow-hidden p-4 ${BORDER_CLASSES[status]}`}>
+      {status === 'pending' && (
         <div className="absolute inset-x-0 top-0 h-1 overflow-hidden">
           <div className="animate-shimmer h-full w-full" />
         </div>
       )}
 
       <div className="flex items-center gap-4">
-        {status === 'analyzing' && (
+        {status === 'pending' && (
           <>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-500/20">
               <i className="ri-loader-4-line ri-lg animate-spin text-teal-600 dark:text-teal-400" />

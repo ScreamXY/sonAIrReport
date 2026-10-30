@@ -25,31 +25,32 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setApiKey('');
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className="card animate-in fade-in zoom-in-95 w-full max-w-md duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
+      <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <h2 className="text-lg font-semibold text-[var(--card-foreground)]">Settings</h2>
           <button
             onClick={onClose}
+            aria-label="Close settings"
             className="focus-ring flex h-8 w-8 items-center justify-center rounded-md text-[var(--foreground-muted)] transition-colors hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]"
           >
             <i className="ri-close-line ri-lg" />
           </button>
         </div>
 
-        {/* Content */}
         <div className="space-y-4 p-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-[var(--card-foreground)]">OpenAI API Key</label>
+            <label htmlFor="api-key" className="text-sm font-medium text-[var(--card-foreground)]">
+              OpenAI API Key
+            </label>
             <div className="relative">
               <input
+                id="api-key"
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
@@ -59,6 +60,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
+                aria-label={showKey ? 'Hide API key' : 'Show API key'}
                 className="absolute top-1/2 right-2 -translate-y-1/2 p-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
               >
                 <i className={showKey ? 'ri-eye-off-line' : 'ri-eye-line'} />
@@ -70,7 +72,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] px-6 py-4">
           <button
             onClick={handleClear}
